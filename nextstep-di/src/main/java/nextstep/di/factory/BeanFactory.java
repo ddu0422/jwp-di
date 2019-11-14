@@ -7,10 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class BeanFactory {
@@ -41,7 +38,7 @@ public class BeanFactory {
     }
 
     public Object instantiate(Class<?> clazz) {
-        if (beans.containsKey(clazz)) {
+        if (hasBean(clazz)) {
             return beans.get(clazz);
         }
 
@@ -81,6 +78,20 @@ public class BeanFactory {
     }
 
     private Object[] getParameters(Constructor<?> constructor) {
+        List<Object> parameters = new ArrayList<>();
+        for (Class<?> parameterType : constructor.getParameterTypes()) {
+            if (hasBean(parameterType)) {
+                parameters.add(getBean(parameterType));
+            }
+
+            Arrays.stream(constructor.getParameterTypes())
+                    .map(clazz -> BeanFactoryUtils.findConcreteClass(clazz, preInstantiateBeans))
+                    .map(this::instantiate)
+                    .toArray();
+
+
+        }
+
         return Arrays.stream(constructor.getParameterTypes())
                 .map(clazz -> BeanFactoryUtils.findConcreteClass(clazz, preInstantiateBeans))
                 .map(this::instantiate)
@@ -91,5 +102,13 @@ public class BeanFactory {
         return beans.keySet().stream()
                 .filter(key -> key.isAnnotationPresent(Controller.class))
                 .collect(Collectors.toSet());
+    }
+
+    public void initClazz(final Set<Class<?>> preInstantiateBeans) {
+        this.preInstantiateBeans = preInstantiateBeans;
+    }
+
+    public boolean hasBean(final Class<?> clazz) {
+        return beans.containsKey(clazz);
     }
 }
